@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Downloader — Entrar</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="alternate icon" href="/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    html.booting body { opacity: 0; }
+    body { transition: opacity 0.2s ease; }
+    html.ready body { opacity: 1; }
+  </style>
+  <link rel="stylesheet" href="/css/style.css?v=12" />
+  <script src="/js/boot.js?v=12"></script>
+
+  <style>
+    /* Card e form — fundo permanece em style.css */
+    body.auth-page {
+      font-family: 'Geist', system-ui, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+
+    .auth-page .auth-card {
+      background: rgba(22, 26, 46, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 20px;
+      padding: 2.25rem 2rem 2rem;
+      width: 100%;
+      max-width: 360px;
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(255, 255, 255, 0.06) inset;
+      animation: cardIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(18px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .auth-page .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 1.75rem;
+    }
+
+    .auth-page .brand-icon {
+      position: relative;
+      width: 52px;
+      height: 52px;
+      flex-shrink: 0;
+      background: none;
+      border: none;
+      box-shadow: none;
+    }
+
+    .logo-ring {
+      position: absolute;
+      inset: 0;
+      border-radius: 14px;
+      border: 1.5px solid rgba(74, 138, 232, 0.35);
+      animation: ringPulse 2.8s ease-in-out infinite;
+    }
+
+    @keyframes ringPulse {
+      0%, 100% { transform: scale(1); opacity: 0.5; }
+      50% { transform: scale(1.1); opacity: 0; }
+    }
+
+    .logo-bg {
+      position: absolute;
+      inset: 0;
+      border-radius: 14px;
+      background: linear-gradient(145deg, #1d3a72, #1a2d58);
+      border: 1px solid rgba(74, 138, 232, 0.25);
+    }
+
+    .logo-svg {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo-arrow {
+      animation: arrowBounce 2s ease-in-out infinite;
+      transform-origin: center;
+    }
+
+    @keyframes arrowBounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(3px); }
+    }
+
+    .logo-tray {
+      animation: trayGlow 2s ease-in-out infinite;
+    }
+
+    @keyframes trayGlow {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+
+    .auth-page .brand h1 {
+      font-size: 20px;
+      font-weight: 500;
+      color: #e8ecf8;
+      letter-spacing: -0.01em;
+      margin: 0;
+    }
+
+    .auth-page .brand .muted {
+      font-size: 12.5px;
+      color: #5a6282;
+      margin-top: 2px;
+    }
+
+    .auth-page .auth-form {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .auth-page .auth-form label {
+      font-size: 12.5px;
+      color: #8890aa;
+      margin: 0 0 8px;
+      font-weight: 400;
+    }
+
+    .auth-page .input-wrap {
+      position: relative;
+      margin-bottom: 14px;
+    }
+
+    .auth-page .input-wrap input {
+      width: 100%;
+      height: 46px;
+      background: #0f1120;
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      border-radius: 10px;
+      padding: 0 46px 0 14px;
+      font-size: 15px;
+      font-family: inherit;
+      color: #d0d6ee;
+      outline: none;
+      letter-spacing: 0.04em;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .auth-page .input-wrap input::placeholder {
+      color: #3a3f5a;
+      letter-spacing: 0.08em;
+    }
+
+    .auth-page .input-wrap input:focus {
+      border-color: rgba(74, 138, 232, 0.6);
+      box-shadow: 0 0 0 3px rgba(74, 138, 232, 0.1);
+      background: #0f1120;
+    }
+
+    .auth-page .icon-btn {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px 6px;
+      color: #454a68;
+      font-size: 17px;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      transition: color 0.2s, background 0.2s;
+    }
+
+    .auth-page .icon-btn:hover {
+      color: #8890aa;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .auth-page .icon-btn svg {
+      width: 18px;
+      height: 18px;
+      display: block;
+    }
+
+    .auth-page .btn-primary {
+      width: 100%;
+      height: 46px;
+      border-radius: 10px;
+      border: none;
+      background: #2d6ad6;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      letter-spacing: 0.01em;
+      transition: background 0.2s, transform 0.12s, box-shadow 0.2s;
+      box-shadow: 0 4px 16px rgba(45, 106, 214, 0.35);
+      margin: 0 0 14px;
+      padding: 0;
+    }
+
+    .auth-page .btn-primary:hover {
+      background: #3d7ae0;
+      box-shadow: 0 6px 20px rgba(45, 106, 214, 0.45);
+      transform: none;
+    }
+
+    .auth-page .btn-primary:active {
+      transform: scale(0.98);
+      background: #2460c4;
+    }
+
+    .auth-page .btn-primary.loading,
+    .auth-page .btn-primary:disabled {
+      opacity: 0.7;
+      pointer-events: none;
+      transform: none;
+    }
+
+    .auth-page .error {
+      font-size: 12.5px;
+      color: #e05a5a;
+      text-align: center;
+      min-height: 18px;
+      background: none;
+      border: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .auth-page .error.hidden {
+      display: none;
+    }
+
+    .auth-page .auth-footer {
+      text-align: center;
+      font-size: 12px;
+      color: #2e3450;
+      margin: 4px 0 0;
+    }
+  </style>
+</head>
+<body class="auth-page">
+  <div class="auth-bg" aria-hidden="true">
+    <div class="auth-bg-image"></div>
+    <div class="auth-bg-overlay"></div>
+  </div>
+
+  <main class="auth-card">
+    <div class="brand">
+      <div class="brand-icon" aria-hidden="true">
+        <div class="logo-ring"></div>
+        <div class="logo-bg"></div>
+        <div class="logo-svg">
+          <svg width="26" height="26" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <line class="logo-arrow" x1="13" y1="3" x2="13" y2="17" stroke="#4a8ae8" stroke-width="2.2" stroke-linecap="round"/>
+            <polyline class="logo-arrow" points="7.5,11.5 13,17.5 18.5,11.5" fill="none" stroke="#4a8ae8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <line class="logo-tray" x1="5" y1="22" x2="21" y2="22" stroke="#2d6ad6" stroke-width="2.4" stroke-linecap="round"/>
+          </svg>
+        </div>
+      </div>
+      <div>
+        <h1>Downloader</h1>
+        <p class="muted">Gerenciador de downloads do servidor</p>
+      </div>
+    </div>
+
+    <form id="login-form" class="auth-form" novalidate>
+      <label for="password">Senha de acesso</label>
+      <div class="input-wrap">
+        <input
+          id="password"
+          type="password"
+          autocomplete="current-password"
+          placeholder="••••••••"
+          required
+          autofocus
+        />
+        <button type="button" id="toggle-pw" class="icon-btn" title="Mostrar senha" aria-label="Mostrar senha">
+          <svg id="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
+      </div>
+      <button type="submit" class="btn-primary" id="login-btn">Entrar</button>
+      <p id="login-error" class="error hidden"></p>
+    </form>
+
+    <p class="auth-footer muted">Acesso restrito</p>
+  </main>
+
+  <script src="/js/login.js?v=12"></script>
+</body>
+</html>

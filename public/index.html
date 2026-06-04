@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Downloader</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="alternate icon" href="/favicon.svg" />
+  <style>
+    html.booting body { opacity: 0; }
+    body { transition: opacity 0.2s ease; }
+    html.ready body { opacity: 1; }
+  </style>
+  <link rel="stylesheet" href="/css/style.css?v=48" />
+  <script src="/js/boot.js?v=48"></script>
+</head>
+<body class="app-page">
+  <div id="app-error" class="app-error hidden"></div>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-icon sm" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 3v10m0 0l4-4m-4 4l-4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div>
+          <strong>Downloader</strong>
+          <span class="muted" id="root-label">carregando…</span>
+        </div>
+      </div>
+
+      <div class="disk-card" id="disk-card">
+        <div class="disk-stats mono">
+          <span id="disk-free">Livre: —</span>
+          <span id="disk-used">Usado: —%</span>
+        </div>
+        <div class="disk-bar"><div id="disk-fill" class="disk-fill"></div></div>
+        <button type="button" id="open-storage-btn" class="btn-ghost storage-open-btn">Analisar armazenamento</button>
+      </div>
+
+      <div class="sidebar-section">
+        <span class="section-label">Atalhos</span>
+        <div id="shortcuts" class="shortcuts"></div>
+      </div>
+
+      <button type="button" id="logout-btn" class="btn-ghost sidebar-logout">Sair</button>
+    </aside>
+
+    <main class="main">
+      <header class="main-header">
+        <div>
+          <h1>Explorador</h1>
+          <p class="muted">Navegue e escolha onde salvar os downloads</p>
+        </div>
+        <div class="header-actions">
+          <button type="button" id="copy-path-btn" class="btn-ghost">Copiar caminho</button>
+          <button type="button" id="refresh-btn" class="btn-ghost">Atualizar</button>
+        </div>
+      </header>
+
+      <div class="grid-2">
+        <section class="card">
+          <div class="card-head">
+            <h2>Pastas e arquivos</h2>
+            <button type="button" id="up-btn" class="btn-icon" title="Subir">↑</button>
+          </div>
+          <nav id="breadcrumb" class="breadcrumb"></nav>
+          <div class="toolbar">
+            <input id="filter-input" type="search" placeholder="Filtrar nesta pasta…" />
+            <div class="mkdir-row">
+              <input id="mkdir-name" type="text" placeholder="Nova subpasta" />
+              <button type="button" id="mkdir-btn" class="btn-secondary">Criar</button>
+            </div>
+          </div>
+          <div id="folder-list" class="folder-list">
+            <div class="empty-state">Carregando…</div>
+          </div>
+          <p class="path-display mono" id="current-path">—</p>
+          <div class="path-actions">
+            <button type="button" id="pin-shortcut-btn" class="btn-pin" disabled>
+              Adicionar aos atalhos
+            </button>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-head"><h2>Novo download</h2></div>
+          <form id="download-form" class="download-form">
+            <label for="url">URL do arquivo ou repositório</label>
+            <div class="input-row">
+              <input id="url" type="url" placeholder="https://huggingface.co/…" required />
+              <button type="button" id="paste-url-btn" class="btn-icon" title="Colar">⎘</button>
+            </div>
+
+            <label>Ferramenta</label>
+            <div id="method-grid" class="method-grid">
+              <div class="empty-state">Carregando ferramentas…</div>
+            </div>
+
+            <label for="filename">Nome do arquivo / pasta <span class="muted">(opcional)</span></label>
+            <input id="filename" type="text" placeholder="Detectado automaticamente se vazio" />
+
+            <button type="submit" id="start-btn" class="btn-primary btn-block">
+              Iniciar download nesta pasta
+            </button>
+            <p id="form-error" class="error hidden"></p>
+          </form>
+        </section>
+      </div>
+
+      <section class="card jobs-card">
+        <div class="card-head">
+          <h2>Downloads</h2>
+          <div class="header-actions">
+            <span id="jobs-count" class="badge">0</span>
+            <button type="button" id="jobs-clear-history" class="btn-ghost">Limpar histórico</button>
+            <button type="button" id="jobs-refresh" class="btn-ghost">Atualizar</button>
+          </div>
+        </div>
+        <div id="jobs" class="jobs">
+          <div class="empty-state">Nenhum download ainda</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="storage-overlay" class="storage-overlay hidden" aria-hidden="true">
+    <div class="storage-backdrop"></div>
+    <div class="storage-panel" role="dialog" aria-modal="true" aria-labelledby="storage-title">
+      <header class="storage-toolbar">
+        <div class="storage-toolbar-left">
+          <h2 id="storage-title">Análise de armazenamento</h2>
+          <p id="storage-summary" class="storage-summary muted"></p>
+        </div>
+        <div class="storage-toolbar-actions">
+          <button type="button" id="storage-rescan" class="btn-secondary" title="Reescanear"><span class="storage-lbl-desktop">Reescanear</span><span class="storage-lbl-mobile" aria-hidden="true">↻</span></button>
+          <button type="button" id="storage-close" class="btn-icon storage-close" title="Fechar">×</button>
+        </div>
+      </header>
+
+      <div class="storage-controls">
+        <div class="storage-path-row">
+          <div class="storage-path-picker">
+            <input id="storage-path" type="text" class="mono" placeholder="caminho relativo (ex: pendriver)" spellcheck="false" autocomplete="off" />
+            <button type="button" id="storage-path-toggle" class="storage-path-toggle" title="Navegar pastas" aria-expanded="false" aria-controls="storage-path-dropdown">▾</button>
+            <div id="storage-path-dropdown" class="storage-path-dropdown hidden" role="listbox" aria-label="Selecionar pasta">
+              <div class="storage-picker-head">
+                <button type="button" id="storage-picker-up" class="storage-picker-up" title="Pasta acima">↑</button>
+                <nav id="storage-picker-crumb" class="storage-picker-crumb"></nav>
+              </div>
+              <div id="storage-picker-list" class="storage-picker-list"></div>
+              <footer class="storage-picker-foot">
+                <span id="storage-picker-current" class="storage-picker-current mono muted"></span>
+                <button type="button" id="storage-picker-select" class="btn-primary"><span class="storage-lbl-desktop">Selecionar esta pasta</span><span class="storage-lbl-mobile">Selecionar</span></button>
+              </footer>
+            </div>
+          </div>
+          <div class="storage-path-actions">
+            <button type="button" id="storage-go-path" class="btn-secondary"><span class="storage-lbl-desktop">Analisar pasta</span><span class="storage-lbl-mobile">Analisar</span></button>
+            <button type="button" id="storage-use-current" class="btn-ghost"><span class="storage-lbl-desktop">Pasta atual</span><span class="storage-lbl-mobile">Atual</span></button>
+          </div>
+        </div>
+        <details class="storage-mobile-drawer storage-filters-drawer">
+          <summary class="storage-drawer-summary">Filtros e ordenação</summary>
+          <div class="storage-filters">
+            <input id="storage-filter" type="search" placeholder="Filtrar nome ou caminho…" />
+            <select id="storage-min-size" title="Tamanho mínimo">
+              <option value="0">Qualquer tamanho</option>
+              <option value="0.1">≥ 100 MB</option>
+              <option value="1">≥ 1 GB</option>
+              <option value="10">≥ 10 GB</option>
+              <option value="100">≥ 100 GB</option>
+            </select>
+            <select id="storage-type-filter">
+              <option value="all">Arquivos e pastas</option>
+              <option value="dirs">Só pastas</option>
+              <option value="files">Só arquivos</option>
+            </select>
+            <button type="button" id="storage-sort-reset" class="btn-ghost storage-sort-reset" title="Voltar à ordenação padrão (maior tamanho)">
+              Ordenação padrão <span class="storage-sort-reset-icon" aria-hidden="true">(↓↑)</span>
+            </button>
+          </div>
+        </details>
+      </div>
+
+      <div id="storage-loading" class="storage-loading hidden">Escaneando disco…</div>
+
+      <div class="storage-body">
+        <div class="storage-table-wrap">
+          <table class="storage-table">
+            <thead>
+              <tr>
+                <th class="storage-th-sort">
+                  <button type="button" class="storage-sort-btn" data-sort="name">
+                    Nome<span class="storage-sort-icon" aria-hidden="true"></span>
+                  </button>
+                </th>
+                <th class="storage-th-sort storage-th-bar">
+                  <button type="button" class="storage-sort-btn" data-sort="pct">
+                    Uso<span class="storage-sort-icon" aria-hidden="true"></span>
+                  </button>
+                </th>
+                <th class="storage-th-sort storage-th-num">
+                  <button type="button" class="storage-sort-btn" data-sort="pct">
+                    % disco<span class="storage-sort-icon" aria-hidden="true"></span>
+                  </button>
+                </th>
+                <th class="storage-th-sort storage-th-num">
+                  <button type="button" class="storage-sort-btn" data-sort="size">
+                    Tamanho<span class="storage-sort-icon" aria-hidden="true"></span>
+                  </button>
+                </th>
+                <th class="storage-th-sort storage-th-num">
+                  <button type="button" class="storage-sort-btn" data-sort="files">
+                    Arquivos<span class="storage-sort-icon" aria-hidden="true"></span>
+                  </button>
+                </th>
+                <th class="storage-th-sort storage-th-num">
+                  <button type="button" class="storage-sort-btn" data-sort="date">
+                    Modificado<span class="storage-sort-icon" aria-hidden="true"></span>
+                  </button>
+                </th>
+              </tr>
+            </thead>
+            <tbody id="storage-tbody"></tbody>
+          </table>
+        </div>
+        <details class="storage-mobile-drawer storage-treemap-drawer">
+          <summary class="storage-drawer-summary">Mapa de uso</summary>
+          <div class="storage-treemap-section">
+            <div class="storage-treemap-head storage-treemap-head-desktop">Mapa — maiores itens (clique para abrir no explorador)</div>
+            <div id="storage-treemap" class="storage-treemap"></div>
+          </div>
+        </details>
+      </div>
+
+      <footer class="storage-footer">
+        <span id="storage-status" class="muted"></span>
+        <span class="storage-footer-hint muted">Duplo clique abre no explorador · Esc para fechar</span>
+      </footer>
+    </div>
+  </div>
+
+  <div id="password-dialog" class="password-dialog hidden" aria-hidden="true">
+    <div class="password-dialog-backdrop"></div>
+    <div class="password-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="password-dialog-title">
+      <h3 id="password-dialog-title">Confirmar senha</h3>
+      <p id="password-dialog-message" class="muted"></p>
+      <input id="password-dialog-input" type="password" autocomplete="current-password" placeholder="Senha" />
+      <p id="password-dialog-error" class="error hidden"></p>
+      <div class="password-dialog-actions">
+        <button type="button" id="password-dialog-cancel" class="btn-ghost">Cancelar</button>
+        <button type="button" id="password-dialog-confirm" class="btn-primary">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-root" class="toast-root" aria-live="polite"></div>
+  <script src="/js/app.js?v=48"></script>
+  <script src="/js/storage.js?v=48"></script>
+</body>
+</html>

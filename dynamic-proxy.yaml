@@ -1,0 +1,28 @@
+http:
+  routers:
+    downloader:
+      rule: 'Host(`downloader.gvtserver.online`) || Host(`www.downloader.gvtserver.online`)'
+      entryPoints:
+        - https
+      service: downloader-svc
+      middlewares:
+        - downloader-sec
+      tls: {}
+  middlewares:
+    downloader-sec:
+      headers:
+        forceSTSHeader: true
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        contentTypeNosniff: true
+        referrerPolicy: strict-origin-when-cross-origin
+        customResponseHeaders:
+          X-Frame-Options: DENY
+          Cross-Origin-Resource-Policy: same-site
+          Permissions-Policy: 'camera=(), microphone=(), geolocation=()'
+  services:
+    downloader-svc:
+      loadBalancer:
+        servers:
+          - url: 'http://downloader:4020'

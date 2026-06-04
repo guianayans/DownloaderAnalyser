@@ -1,0 +1,61 @@
+services:
+  downloader:
+    container_name: downloader
+    build:
+      context: /pendriver/downloader
+      dockerfile: Dockerfile
+    image: downloader-local:latest
+    pull_policy: build
+    working_dir: /app
+    volumes:
+      - /pendriver/downloader:/app
+      - downloader_node_modules:/app/node_modules
+      - /:/host
+    environment:
+      NODE_ENV: production
+      PORT: "4020"
+      DOWNLOADER_ROOT: "/host"
+      DOWNLOADER_ROOT_LABEL: "/"
+      DOWNLOADER_HIST_DIR: "/host/pendriver/downloader_hist"
+      DOWNLOADER_PASSWORD: ${DOWNLOADER_PASSWORD}
+      DOWNLOADER_SESSION_SECRET: ${DOWNLOADER_SESSION_SECRET}
+      HF_HUB_ENABLE_HF_TRANSFER: ${HF_HUB_ENABLE_HF_TRANSFER:-1}
+      HF_TOKEN: ${HF_TOKEN:-}
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - '-e'
+        - "require('http').get('http://127.0.0.1:4020/login',r=>process.exit(r.statusCode>=200&&r.statusCode<500?0:1)).on('error',()=>process.exit(1));"
+      interval: 20s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    networks:
+      - coolify
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    labels:
+      - traefik.enable=true
+      - 'traefik.http.routers.downloader.rule=Host(`downloader.gvtserver.online`) || Host(`www.downloader.gvtserver.online`)'
+      - traefik.http.routers.downloader.entrypoints=https
+      - traefik.http.services.downloader.loadbalancer.server.port=4020
+      - 'traefik.http.routers.downloader.middlewares=downloader-sec'
+      - traefik.http.middlewares.downloader-sec.headers.forceSTSHeader=true
+      - traefik.http.middlewares.downloader-sec.headers.stsSeconds=31536000
+      - traefik.http.middlewares.downloader-sec.headers.stsIncludeSubdomains=true
+      - traefik.http.middlewares.downloader-sec.headers.stsPreload=true
+      - traefik.http.middlewares.downloader-sec.headers.contentTypeNosniff=true
+      - traefik.http.middlewares.downloader-sec.headers.referrerPolicy=strict-origin-when-cross-origin
+      - traefik.http.middlewares.downloader-sec.headers.customResponseHeaders.X-Frame-Options=SAMEORIGIN
+      - traefik.http.middlewares.downloader-sec.headers.customResponseHeaders.Cross-Origin-Resource-Policy=same-site
+      - 'traefik.http.middlewares.downloader-sec.headers.customResponseHeaders.Permissions-Policy=camera=(), microphone=(), geolocation=()'
+
+volumes:
+  downloader_node_modules: null
+
+networks:
+  coolify:
+    external: true
