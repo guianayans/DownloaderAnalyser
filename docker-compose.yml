@@ -19,9 +19,34 @@ services:
       DOWNLOADER_HIST_DIR: "/host/pendriver/downloader_hist"
       DOWNLOADER_PASSWORD: ${DOWNLOADER_PASSWORD}
       DOWNLOADER_SESSION_SECRET: ${DOWNLOADER_SESSION_SECRET}
-      HF_HUB_ENABLE_HF_TRANSFER: ${HF_HUB_ENABLE_HF_TRANSFER:-1}
+      HF_XET_HIGH_PERFORMANCE: ${HF_XET_HIGH_PERFORMANCE:-${HF_HUB_ENABLE_HF_TRANSFER:-1}}
       HF_TOKEN: ${HF_TOKEN:-}
+      OLLAMA_HOST: ${OLLAMA_HOST:-http://host.docker.internal:11434}
+      OLLAMA_HOST_ROOT: ${OLLAMA_HOST_ROOT:-/}
+      OLLAMA_CONTAINER_ROOT: ${OLLAMA_CONTAINER_ROOT:-/root/.ollama}
+      OLLAMA_GGUF_STAGING_DIR: ${OLLAMA_GGUF_STAGING_DIR:-gguf-import}
+      AI_GGUF_DIRS: ${AI_GGUF_DIRS:-pendriver/llamacpp/models}
+      OLLAMA_MODELS_DIR: ${OLLAMA_MODELS_DIR:-}
+      OPEN_WEBUI_URL: ${OPEN_WEBUI_URL:-https://openwebui.gvtserver.online}
+      LLAMAWEB_URL: ${LLAMAWEB_URL:-http://host.docker.internal:8090}
+      LLAMAWEB_PUBLIC_URL: ${LLAMAWEB_PUBLIC_URL:-https://llamacpp.gvtserver.online}
+      OLLAMA_PUBLIC_URL: ${OLLAMA_PUBLIC_URL:-http://yanserver.ddns.net:11434}
+      LLAMAWEB_URL: ${LLAMAWEB_URL:-http://llamacpp:8080}
+      LLAMAWEB_PUBLIC_URL: ${LLAMAWEB_PUBLIC_URL:-https://llamacpp.gvtserver.online}
+      GPU_TERMINAL_MODE: ${GPU_TERMINAL_MODE:-container}
+      GPU_TERMINAL_CMD: ${GPU_TERMINAL_CMD:-nvtop}
+      NVIDIA_VISIBLE_DEVICES: ${NVIDIA_VISIBLE_DEVICES:-all}
+      NVIDIA_DRIVER_CAPABILITIES: ${NVIDIA_DRIVER_CAPABILITIES:-compute,utility}
     restart: unless-stopped
+    # Requer nvidia-container-toolkit no host. Se Coolify não suportar gpus:, use só devices: abaixo.
+    gpus: all
+    # SYS_ADMIN só se GPU_TERMINAL_MODE=host (nsenter no host). Descomente se precisar:
+    # cap_add:
+    #   - SYS_ADMIN
+    devices:
+      - /dev/nvidia0:/dev/nvidia0
+      - /dev/nvidiactl:/dev/nvidiactl
+      - /dev/nvidia-uvm:/dev/nvidia-uvm
     healthcheck:
       test:
         - CMD
@@ -37,6 +62,8 @@ services:
     dns:
       - 8.8.8.8
       - 1.1.1.1
+    extra_hosts:
+      - host.docker.internal:host-gateway
     labels:
       - traefik.enable=true
       - 'traefik.http.routers.downloader.rule=Host(`downloader.gvtserver.online`) || Host(`www.downloader.gvtserver.online`)'

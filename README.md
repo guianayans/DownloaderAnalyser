@@ -20,7 +20,7 @@ Painel web para explorar arquivos no servidor e iniciar downloads com **wget**, 
 
 - **Docker** e **Docker Compose** (recomendado para produção)
 - Ou **Node.js ≥ 20** para desenvolvimento local
-- No container: `wget`, `curl`, `git`, `aria2`, `huggingface-cli` (já incluídos na imagem)
+- No container: `wget`, `curl`, `git`, `aria2`, `hf` (Hugging Face CLI, já incluído na imagem)
 
 ---
 
@@ -44,7 +44,7 @@ cp .env.example .env
 | `DOWNLOADER_ROOT_LABEL` | Não | Rótulo exibido na UI como raiz (padrão: `/`) |
 | `DOWNLOADER_HIST_DIR` | Não | Onde salvar histórico, atalhos e layout da sidebar **no disco do host** |
 | `PORT` | Não | Porta interna (padrão: `4020`) |
-| `HF_HUB_ENABLE_HF_TRANSFER` | Não | `1` acelera downloads do Hugging Face |
+| `HF_XET_HIGH_PERFORMANCE` | Não | `1` acelera downloads do Hugging Face (Xet) |
 | `HF_TOKEN` | Não | Token HF para modelos privados |
 
 Gerar segredo de sessão:

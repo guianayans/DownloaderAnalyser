@@ -1118,6 +1118,8 @@ window.downloaderHooks = {
   toast,
   browseFolder: (path) => api(`/api/browse?path=${encodeURIComponent(path || '.')}`),
   getSidebar: () => api('/api/sidebar'),
+  api,
+  confirmWithPassword,
 };
 
 document.getElementById('download-form').addEventListener('submit', async (e) => {

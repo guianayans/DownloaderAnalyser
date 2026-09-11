@@ -11,8 +11,9 @@
     body { transition: opacity 0.2s ease; }
     html.ready body { opacity: 1; }
   </style>
-  <link rel="stylesheet" href="/css/style.css?v=48" />
-  <script src="/js/boot.js?v=48"></script>
+  <link rel="stylesheet" href="/css/style.css?v=72" />
+  <link rel="stylesheet" href="/vendor/xterm/xterm.min.css" />
+  <script src="/js/boot.js?v=55"></script>
 </head>
 <body class="app-page">
   <div id="app-error" class="app-error hidden"></div>
@@ -35,6 +36,7 @@
         </div>
         <div class="disk-bar"><div id="disk-fill" class="disk-fill"></div></div>
         <button type="button" id="open-storage-btn" class="btn-ghost storage-open-btn">Analisar armazenamento</button>
+        <button type="button" id="open-models-btn" class="btn-ghost models-open-btn">Modelos de IA</button>
       </div>
 
       <div class="sidebar-section">
@@ -184,11 +186,23 @@
 
       <div id="storage-loading" class="storage-loading hidden">Escaneando disco…</div>
 
+      <div id="storage-selection-bar" class="storage-selection-bar hidden">
+        <span id="storage-selection-count" class="storage-selection-count muted">0 selecionado(s)</span>
+        <div class="storage-selection-actions">
+          <button type="button" id="storage-select-visible" class="btn-ghost btn-sm">Selecionar visíveis</button>
+          <button type="button" id="storage-clear-selection" class="btn-ghost btn-sm">Limpar</button>
+          <button type="button" id="storage-delete-selected" class="btn-danger-ghost btn-sm" disabled>Excluir selecionados</button>
+        </div>
+      </div>
+
       <div class="storage-body">
         <div class="storage-table-wrap">
           <table class="storage-table">
             <thead>
               <tr>
+                <th class="storage-col-check" scope="col">
+                  <input type="checkbox" id="storage-select-all" title="Selecionar itens visíveis" aria-label="Selecionar itens visíveis" />
+                </th>
                 <th class="storage-th-sort">
                   <button type="button" class="storage-sort-btn" data-sort="name">
                     Nome<span class="storage-sort-icon" aria-hidden="true"></span>
@@ -235,8 +249,208 @@
 
       <footer class="storage-footer">
         <span id="storage-status" class="muted"></span>
-        <span class="storage-footer-hint muted">Duplo clique abre no explorador · Esc para fechar</span>
+        <span class="storage-footer-hint muted">Selecione itens para excluir · Duplo clique abre no explorador · Esc para fechar</span>
       </footer>
+    </div>
+  </div>
+
+  <div id="models-overlay" class="models-overlay hidden" aria-hidden="true">
+    <div class="models-backdrop"></div>
+    <div class="models-panel" role="dialog" aria-modal="true" aria-labelledby="models-title">
+      <header class="models-toolbar">
+        <div class="models-toolbar-left">
+          <h2 id="models-title">Modelos de IA</h2>
+          <p id="models-summary" class="models-summary muted"></p>
+        </div>
+        <div class="models-toolbar-actions">
+          <a id="models-open-llamacpp" class="btn-secondary models-webui-link hidden" href="#" target="_blank" rel="noopener">LLama CPP</a>
+          <a id="models-open-webui" class="btn-secondary models-webui-link hidden" href="#" target="_blank" rel="noopener">Open WebUI</a>
+          <button type="button" id="models-refresh" class="btn-secondary" title="Atualizar">↻</button>
+          <button type="button" id="models-close" class="btn-icon models-close" title="Fechar">×</button>
+        </div>
+      </header>
+
+      <div class="models-tabs" role="tablist">
+        <button type="button" class="models-tab is-active" data-tab="ollama" role="tab" aria-selected="true">Ollama</button>
+        <button type="button" class="models-tab" data-tab="gguf" role="tab" aria-selected="false">Arquivos GGUF</button>
+        <button type="button" class="models-tab" data-tab="pull" role="tab" aria-selected="false">Baixar modelo</button>
+        <button type="button" class="models-tab" data-tab="terminal" role="tab" aria-selected="false">Uso GPU</button>
+      </div>
+
+      <div id="models-loading" class="models-loading hidden">Conectando ao Ollama…</div>
+
+      <div id="models-folder-view" class="models-folder-view hidden">
+        <header class="models-folder-head">
+          <button type="button" id="models-folder-back" class="btn-ghost btn-sm">← Voltar</button>
+          <nav id="models-folder-crumb" class="models-folder-crumb mono"></nav>
+          <button type="button" id="models-folder-up" class="btn-icon" title="Subir" disabled>↑</button>
+        </header>
+        <div id="models-folder-loading" class="models-loading hidden">Abrindo pasta…</div>
+        <div id="models-folder-list" class="models-folder-list"></div>
+      </div>
+
+      <div id="models-main-view" class="models-main-view">
+      <div class="models-body">
+        <div id="models-load-log" class="models-load-log hidden">
+          <div class="models-load-log-head">
+            <div class="models-load-log-title-row">
+              <strong id="models-load-log-title">Operação</strong>
+              <div class="models-load-log-head-actions">
+                <span id="models-load-log-pct" class="models-load-log-pct mono">0%</span>
+                <button type="button" id="models-load-log-close" class="btn-icon models-load-log-close" title="Fechar log">×</button>
+              </div>
+            </div>
+            <span id="models-load-log-status" class="muted"></span>
+          </div>
+          <div class="models-progress models-load-progress">
+            <div id="models-load-progress-fill" class="models-progress-fill" style="width:0%"></div>
+          </div>
+          <pre id="models-load-log-text" class="models-load-log-text mono"></pre>
+        </div>
+
+        <section id="models-tab-ollama" class="models-tab-panel" role="tabpanel">
+          <p class="models-hint muted">Modelos importados de <code>AI_GGUF_DIRS</code> (ex: <code>pendriver/llamacpp/models</code>) ficam disponíveis na API Ollama — use <strong>Importar</strong> no GGUF e depois <strong>Carregar</strong> aqui.</p>
+          <div id="models-ollama-status" class="models-status-bar"></div>
+          <div id="models-import-jobs" class="models-jobs hidden"></div>
+          <div class="models-section-head">
+            <h3>Em execução</h3>
+            <span id="models-running-count" class="badge">0</span>
+          </div>
+          <div id="models-running" class="models-list"></div>
+
+          <div class="models-section-head">
+            <h3>Instalados no Ollama</h3>
+            <span id="models-installed-count" class="badge">0</span>
+          </div>
+          <div id="models-installed" class="models-list"></div>
+
+          <div id="models-gguf-orphans-wrap" class="hidden">
+            <div class="models-section-head">
+              <h3>GGUF no disco (importar no Ollama)</h3>
+              <span id="models-gguf-orphans-count" class="badge">0</span>
+            </div>
+            <div id="models-gguf-orphans" class="models-list"></div>
+          </div>
+        </section>
+
+        <section id="models-tab-gguf" class="models-tab-panel hidden" role="tabpanel">
+          <p class="models-hint muted">Arquivos em <code>AI_GGUF_DIRS</code> — <strong>Carregar</strong> → llama.cpp · <strong>Importar no Ollama</strong> → API para IDE/Open WebUI</p>
+          <div id="models-gguf-status" class="models-status-bar"></div>
+          <div class="models-section-head">
+            <h3>Em execução</h3>
+            <span id="models-gguf-running-count" class="badge">0</span>
+          </div>
+          <div id="models-gguf-running" class="models-list"></div>
+          <div class="models-section-head">
+            <h3>Arquivos no disco</h3>
+            <span id="models-gguf-files-count" class="badge">0</span>
+          </div>
+          <div id="models-gguf" class="models-gguf-groups"></div>
+        </section>
+
+        <section id="models-tab-pull" class="models-tab-panel hidden" role="tabpanel">
+          <p class="models-hint muted">Biblioteca Ollama (<code>llama3.2:3b</code>) ou Hugging Face via Ollama (<code>hf.co/user/repo:Q8_0</code>). Também aceita <code>ollama run hf.co/…</code> colado direto.</p>
+          <form id="models-pull-form" class="models-pull-form">
+            <label for="models-pull-name">Modelo ou link</label>
+            <div class="models-pull-row">
+              <input id="models-pull-name" type="text" placeholder="hf.co/unsloth/gemma-4-E4B-it-GGUF:Q8_0" spellcheck="false" autocomplete="off" required />
+              <button type="submit" class="btn-primary">Baixar</button>
+            </div>
+            <label class="models-pull-save-gguf">
+              <input type="checkbox" id="models-pull-save-gguf" checked />
+              <span>Salvar arquivo <code>.gguf</code> na pasta GGUF (para llama.cpp)</span>
+            </label>
+          </form>
+          <div class="models-popular">
+            <span class="muted">Sugestões:</span>
+            <div id="models-popular-chips" class="models-chips"></div>
+          </div>
+          <div class="models-section-head">
+            <h3>Downloads em andamento</h3>
+          </div>
+          <div id="models-pull-jobs" class="models-jobs"></div>
+        </section>
+
+        <section id="models-tab-terminal" class="models-tab-panel hidden" role="tabpanel">
+          <div class="models-terminal-bar">
+            <p class="models-terminal-hint muted">Monitor GPU · <code>nvtop</code></p>
+            <button type="button" id="models-terminal-reconnect" class="btn-ghost btn-sm" title="Reiniciar nvtop">↻ Reiniciar</button>
+          </div>
+          <div id="models-gpu-terminal" class="models-gpu-terminal" aria-label="Terminal nvtop"></div>
+        </section>
+      </div>
+      </div>
+
+      <footer class="models-footer">
+        <span id="models-footer-status" class="muted"></span>
+        <span id="models-footer-hint" class="models-footer-hint muted">Carregar = configurar e manter na VRAM · Esc para fechar</span>
+      </footer>
+    </div>
+  </div>
+
+  <div id="model-detail-overlay" class="model-detail-overlay hidden" aria-hidden="true">
+    <div class="model-detail-backdrop"></div>
+    <div class="model-detail-panel" role="dialog" aria-modal="true" aria-labelledby="model-detail-title">
+      <header class="model-detail-head">
+        <div>
+          <h2 id="model-detail-title">Detalhes do modelo</h2>
+          <p id="model-detail-subtitle" class="model-detail-subtitle mono muted"></p>
+        </div>
+        <button type="button" id="model-detail-close" class="btn-icon" title="Fechar">×</button>
+      </header>
+      <div id="model-detail-loading" class="model-detail-loading hidden">Carregando…</div>
+      <div id="model-detail-body" class="model-detail-body hidden"></div>
+    </div>
+  </div>
+
+  <div id="model-load-overlay" class="model-load-overlay hidden" aria-hidden="true">
+    <div class="model-load-backdrop"></div>
+    <div class="model-load-panel" role="dialog" aria-modal="true" aria-labelledby="model-load-title">
+      <header class="model-load-head">
+        <div>
+          <h2 id="model-load-title">Carregar modelo</h2>
+          <p id="model-load-subtitle" class="model-load-subtitle mono muted"></p>
+        </div>
+        <button type="button" id="model-load-close" class="btn-icon" title="Fechar">×</button>
+      </header>
+      <div id="model-load-loading" class="model-load-loading">Carregando parâmetros…</div>
+      <form id="model-load-form" class="model-load-form hidden">
+        <div class="model-load-presets">
+          <span class="muted">Sugestões:</span>
+          <div id="model-load-preset-chips" class="models-chips"></div>
+        </div>
+        <div class="model-load-presets model-load-user-presets">
+          <span class="muted">Meus presets:</span>
+          <div id="model-load-user-chips" class="models-chips">
+            <span class="model-load-no-presets muted">Nenhum salvo ainda</span>
+          </div>
+          <div class="model-load-save-row">
+            <input id="model-load-preset-name" type="text" placeholder="Nome do preset (ex: Híbrido 14B)" spellcheck="false" autocomplete="off" />
+            <button type="button" id="model-load-save-preset-btn" class="btn-secondary btn-sm">Salvar preset</button>
+          </div>
+        </div>
+        <p id="model-load-context-hint" class="model-load-hint muted"></p>
+        <div id="model-load-alias-wrap" class="model-load-field">
+          <label for="model-load-alias">Alias no Ollama / Cursor</label>
+          <input id="model-load-alias" type="text" placeholder="ex: qwen-coder" spellcheck="false" autocomplete="off" />
+          <span class="model-load-opt-hint">Nome curto registrado no Ollama. Use este nome no Cursor em vez do hf.co/…</span>
+        </div>
+        <div id="model-load-keep-alive-wrap" class="model-load-field">
+          <label for="model-load-keep-alive">Tempo carregado na memória</label>
+          <select id="model-load-keep-alive" name="keepAlive"></select>
+        </div>
+        <div id="model-load-groups" class="model-load-groups"></div>
+        <footer class="model-load-foot">
+          <label class="model-load-save-label" title="Lembrar última config deste modelo">
+            <input type="checkbox" id="model-load-save-preset" checked />
+            <span>Lembrar config deste modelo</span>
+          </label>
+          <div class="model-load-actions">
+            <button type="button" id="model-load-cancel" class="btn-ghost">Cancelar</button>
+            <button type="submit" class="btn-primary">Carregar modelo</button>
+          </div>
+        </footer>
+      </form>
     </div>
   </div>
 
@@ -255,7 +469,11 @@
   </div>
 
   <div id="toast-root" class="toast-root" aria-live="polite"></div>
-  <script src="/js/app.js?v=48"></script>
-  <script src="/js/storage.js?v=48"></script>
+  <script src="/vendor/xterm/xterm.min.js"></script>
+  <script src="/vendor/xterm-addon-fit/addon-fit.min.js"></script>
+  <script src="/js/app.js?v=55"></script>
+  <script src="/js/storage.js?v=56"></script>
+  <script src="/js/gpu-terminal.js?v=64"></script>
+  <script src="/js/models.js?v=87"></script>
 </body>
 </html>

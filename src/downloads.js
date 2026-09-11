@@ -48,7 +48,7 @@ const METHOD_DEFS = {
   huggingface: {
     label: 'Hugging Face',
     description: 'Modelos do Hugging Face',
-    binary: 'huggingface-cli',
+    binary: 'hf',
     kind: 'huggingface',
   },
 };
@@ -279,10 +279,10 @@ function createJob({ method, url, targetDir, filename }) {
     args = ['clone', '--depth', '1', '--progress', url, path.join(dir, folder)];
   } else if (method === 'huggingface') {
     const parsed = parseHuggingFaceUrl(url);
-    cmd = 'huggingface-cli';
+    cmd = 'hf';
     args = ['download', parsed.repo, parsed.file, '--local-dir', dir];
     if (filename) {
-      job.logText += 'Aviso: filename customizado ignorado para huggingface-cli; arquivo vai para local-dir.\n';
+      job.logText += 'Aviso: filename customizado ignorado para hf download; arquivo vai para local-dir.\n';
     }
   }
 
@@ -292,7 +292,8 @@ function createJob({ method, url, targetDir, filename }) {
     cwd: dir,
     env: {
       ...process.env,
-      HF_HUB_ENABLE_HF_TRANSFER: process.env.HF_HUB_ENABLE_HF_TRANSFER || '1',
+      HF_XET_HIGH_PERFORMANCE:
+        process.env.HF_XET_HIGH_PERFORMANCE || process.env.HF_HUB_ENABLE_HF_TRANSFER || '1',
     },
   });
 

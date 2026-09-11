@@ -20,10 +20,17 @@
     treemap: document.getElementById('storage-treemap'),
     summary: document.getElementById('storage-summary'),
     loading: document.getElementById('storage-loading'),
+    selectionBar: document.getElementById('storage-selection-bar'),
+    selectionCount: document.getElementById('storage-selection-count'),
+    selectAll: document.getElementById('storage-select-all'),
+    selectVisible: document.getElementById('storage-select-visible'),
+    clearSelection: document.getElementById('storage-clear-selection'),
+    deleteSelected: document.getElementById('storage-delete-selected'),
   };
 
   const DEFAULT_SORT = { col: 'size', dir: 'desc' };
   let tableSort = null;
+  const selected = new Set();
 
   let scanRoot = '.';
   let diskInfo = null;
@@ -346,6 +353,99 @@
     return buildTreeRows();
   }
 
+  function hooks() {
+    return window.downloaderHooks || {};
+  }
+
+  function pruneSelection() {
+    for (const path of [...selected]) {
+      if (!nodeMap.has(path)) selected.delete(path);
+    }
+  }
+
+  function updateSelectionUi() {
+    pruneSelection();
+    const count = selected.size;
+    if (els.selectionBar) {
+      els.selectionBar.classList.toggle('hidden', count === 0);
+    }
+    if (els.selectionCount) {
+      els.selectionCount.textContent = `${count.toLocaleString('pt-BR')} selecionado(s)`;
+    }
+    if (els.deleteSelected) {
+      els.deleteSelected.disabled = count === 0;
+    }
+
+    const visible = visibleRows();
+    const visiblePaths = visible.map((row) => row.path);
+    const selectedVisible = visiblePaths.filter((path) => selected.has(path));
+    if (els.selectAll) {
+      els.selectAll.checked = visible.length > 0 && selectedVisible.length === visible.length;
+      els.selectAll.indeterminate =
+        selectedVisible.length > 0 && selectedVisible.length < visible.length;
+    }
+  }
+
+  function setSelected(path, on) {
+    if (!path) return;
+    if (on) selected.add(path);
+    else selected.delete(path);
+    updateSelectionUi();
+    const row = els.tbody?.querySelector(`.storage-row[data-path="${CSS.escape(path)}"]`);
+    row?.classList.toggle('is-selected', on);
+    const cb = row?.querySelector('.storage-select');
+    if (cb) cb.checked = on;
+  }
+
+  function selectVisibleRows(on) {
+    for (const row of visibleRows()) {
+      if (on) selected.add(row.path);
+      else selected.delete(row.path);
+    }
+    renderTable();
+    updateSelectionUi();
+  }
+
+  function clearSelection() {
+    selected.clear();
+    renderTable();
+    updateSelectionUi();
+  }
+
+  async function deleteSelectedItems() {
+    if (!selected.size) return;
+
+    const paths = [...selected];
+    const rows = paths.map((p) => nodeMap.get(p)).filter(Boolean);
+    const fileCount = rows.filter((r) => r.type === 'file').length;
+    const dirCount = rows.filter((r) => r.type === 'directory').length;
+    const parts = [];
+    if (fileCount) parts.push(`${fileCount} arquivo(s)`);
+    if (dirCount) parts.push(`${dirCount} pasta(s) com todo o conteúdo`);
+    const detail = parts.length ? ` (${parts.join(' · ')})` : '';
+    const totalSize = rows.reduce((sum, row) => sum + (row.size || 0), 0);
+    const sizeHint = totalSize > 0 ? `\n\nTotal: ${formatBytes(totalSize)}` : '';
+
+    const ok = await hooks().confirmWithPassword?.({
+      title: 'Excluir do armazenamento',
+      message: `Remover permanentemente ${paths.length} item(ns)${detail}?${sizeHint}`,
+      action: (password) =>
+        hooks().api?.('/api/storage/delete', {
+          method: 'POST',
+          body: JSON.stringify({ password, paths }),
+        }),
+    });
+
+    if (!ok) return;
+
+    for (const path of paths) selected.delete(path);
+    updateSelectionUi();
+
+    const toast = hooks().toast;
+    toast?.('Itens excluídos', 'success');
+    await runScan();
+  }
+
   function passesFilters(row) {
     const q = (els.filter?.value || '').trim().toLowerCase();
     if (q && !row.name.toLowerCase().includes(q) && !row.path.toLowerCase().includes(q)) {
@@ -424,7 +524,8 @@
     const rows = visibleRows();
     if (!rows.length) {
       els.tbody.innerHTML =
-        '<tr><td colspan="6" class="storage-empty">Nenhum item. Expanda pastas ou ajuste filtros.</td></tr>';
+        '<tr><td colspan="7" class="storage-empty">Nenhum item. Expanda pastas ou ajuste filtros.</td></tr>';
+      updateSelectionUi();
       return;
     }
 
@@ -434,6 +535,7 @@
         const isOpen = expanded.has(row.path);
         const canExpand = isDir;
         const indent = displayDepth(row.path) * 18;
+        const isSelected = selected.has(row.path);
         const toggle = canExpand
           ? `<button type="button" class="storage-tree-toggle${isOpen ? ' is-open' : ''}" data-path="${escapeHtml(row.path)}" aria-expanded="${isOpen}" aria-label="${isOpen ? 'Recolher' : 'Expandir'}">${isOpen ? '▾' : '▸'}</button>`
           : '<span class="storage-tree-spacer"></span>';
@@ -442,7 +544,10 @@
           : '';
         const pctDisk = row.pctOfDisk ?? 0;
         const files = row.fileCount < 0 ? '—' : String(row.fileCount.toLocaleString('pt-BR'));
-        return `<tr class="storage-row ${isDir ? 'is-dir' : 'is-file'}" data-path="${escapeHtml(row.path)}" data-type="${row.type}">
+        return `<tr class="storage-row ${isDir ? 'is-dir' : 'is-file'}${isSelected ? ' is-selected' : ''}" data-path="${escapeHtml(row.path)}" data-type="${row.type}">
+          <td class="storage-col-check">
+            <input type="checkbox" class="storage-select" data-path="${escapeHtml(row.path)}" aria-label="Selecionar ${escapeHtml(row.name)}"${isSelected ? ' checked' : ''} />
+          </td>
           <td class="storage-col-name">
             <div class="storage-name-cell" style="padding-left:${indent}px">
               ${toggle}<span class="storage-icon">${isDir ? '📁' : '📄'}</span>
@@ -458,6 +563,14 @@
       })
       .join('');
 
+    els.tbody.querySelectorAll('.storage-select').forEach((cb) => {
+      cb.addEventListener('click', (e) => e.stopPropagation());
+      cb.addEventListener('change', (e) => {
+        e.stopPropagation();
+        setSelected(cb.dataset.path, cb.checked);
+      });
+    });
+
     els.tbody.querySelectorAll('.storage-tree-toggle').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -466,7 +579,8 @@
     });
 
     els.tbody.querySelectorAll('.storage-row').forEach((tr) => {
-      tr.addEventListener('click', () => {
+      tr.addEventListener('click', (e) => {
+        if (e.target.closest('.storage-col-check')) return;
         if (tr.dataset.type === 'directory') toggleExpand(tr.dataset.path);
       });
       tr.addEventListener('dblclick', (e) => {
@@ -475,6 +589,8 @@
         closeStorage();
       });
     });
+
+    updateSelectionUi();
   }
 
   function renderTreemap() {
@@ -542,6 +658,7 @@
     loadedDirs = new Set();
     folderMeta = null;
     tableSort = null;
+    selected.clear();
 
     if (els.loading) els.loading.classList.remove('hidden');
     if (els.status) els.status.textContent = 'Analisando…';
@@ -556,7 +673,7 @@
       if (token !== scanAbort) return;
       if (els.status) els.status.textContent = err.message;
       if (els.tbody) {
-        els.tbody.innerHTML = `<tr><td colspan="6" class="storage-empty error">${escapeHtml(err.message)}</td></tr>`;
+        els.tbody.innerHTML = `<tr><td colspan="7" class="storage-empty error">${escapeHtml(err.message)}</td></tr>`;
       }
     } finally {
       if (token === scanAbort && els.loading) els.loading.classList.add('hidden');
@@ -575,6 +692,8 @@
   function closeStorage() {
     scanAbort += 1;
     closePicker();
+    selected.clear();
+    updateSelectionUi();
     overlay.classList.add('hidden');
     overlay.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('storage-open');
@@ -617,6 +736,10 @@
     });
   });
   els.sortReset?.addEventListener('click', resetSort);
+  els.selectAll?.addEventListener('change', () => selectVisibleRows(els.selectAll.checked));
+  els.selectVisible?.addEventListener('click', () => selectVisibleRows(true));
+  els.clearSelection?.addEventListener('click', clearSelection);
+  els.deleteSelected?.addEventListener('click', deleteSelectedItems);
 
   for (const el of [els.filter, els.minSize, els.typeFilter]) {
     el?.addEventListener('input', renderAll);
@@ -636,4 +759,5 @@
 
   window.downloaderStorage = { open: openStorage, close: closeStorage };
   updateSortHeaders();
+  updateSelectionUi();
 })();

@@ -2,10 +2,12 @@ const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const {
+  ROOT,
   assertDirectory,
   relativeFromRoot,
   displayPath,
   getDiskStats,
+  resolveSafe,
 } = require('./paths');
 
 function duBytes(absPath) {
@@ -116,6 +118,61 @@ function listLevel(requestedPath) {
   };
 }
 
+function normalizeDeletePath(raw) {
+  const trimmed = String(raw || '').trim().replace(/^\/+/, '');
+  return trimmed === '' || trimmed === '.' ? null : trimmed;
+}
+
+function deleteStorageItems(paths) {
+  if (!Array.isArray(paths) || !paths.length) {
+    throw new Error('Informe ao menos um caminho.');
+  }
+
+  const normalized = [
+    ...new Set(paths.map(normalizeDeletePath).filter(Boolean)),
+  ];
+
+  if (!normalized.length) {
+    throw new Error('Nenhum caminho válido para excluir.');
+  }
+
+  normalized.sort((a, b) => b.split('/').length - a.split('/').length);
+
+  const rootResolved = path.resolve(ROOT);
+  const removed = [];
+  const errors = [];
+
+  for (const rel of normalized) {
+    try {
+      const abs = resolveSafe(rel);
+      if (abs === rootResolved) {
+        throw new Error('Não é permitido excluir a raiz.');
+      }
+      if (!fs.existsSync(abs)) {
+        throw new Error('Não encontrado.');
+      }
+      const stat = fs.statSync(abs);
+      if (stat.isDirectory()) {
+        fs.rmSync(abs, { recursive: true, force: true });
+      } else if (stat.isFile()) {
+        fs.unlinkSync(abs);
+      } else {
+        throw new Error('Tipo de item não suportado.');
+      }
+      removed.push(rel);
+    } catch (err) {
+      errors.push({ path: rel, error: err.message });
+    }
+  }
+
+  if (!removed.length) {
+    throw new Error(errors[0]?.error || 'Nenhum item foi excluído.');
+  }
+
+  return { ok: true, removed, errors };
+}
+
 module.exports = {
   listLevel,
+  deleteStorageItems,
 };

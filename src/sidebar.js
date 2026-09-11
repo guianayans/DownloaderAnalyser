@@ -19,6 +19,16 @@ const DEFAULT_FLUX_CHILDREN = [
 const DEFAULT_ROOT = [
   { id: 'link:pendriver', type: 'link', label: 'pendriver', path: 'pendriver' },
   {
+    id: 'folder:llm',
+    type: 'folder',
+    label: 'IA local',
+    path: 'pendriver/llamacpp',
+    children: [
+      { id: 'llm:raiz', type: 'link', label: 'llamacpp', path: 'pendriver/llamacpp' },
+      { id: 'llm:models', type: 'link', label: 'Modelos GGUF', path: 'pendriver/llamacpp/models' },
+    ],
+  },
+  {
     id: 'folder:flux',
     type: 'folder',
     label: 'Flux',
@@ -27,8 +37,9 @@ const DEFAULT_ROOT = [
   },
 ];
 
-const DEFAULT_ROOT_ORDER = ['link:pendriver', 'folder:flux'];
+const DEFAULT_ROOT_ORDER = ['link:pendriver', 'folder:llm', 'folder:flux'];
 const DEFAULT_CHILD_ORDERS = {
+  'folder:llm': ['llm:raiz', 'llm:models'],
   'folder:flux': DEFAULT_FLUX_CHILDREN.map((item) => item.id),
 };
 
